@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Match App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8c8d6; /* Màu hồng cho trang chủ */
+            text-align: center;
+            margin-top: 50px;
+        }
+        #matchButton {
+            background-color: #add8e6; /* Nút match màu xanh da trời */
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #chatRoom {
+            display: none;
+            margin-top: 20px;
+            background-color: #fcd0d6; /* Màu hồng nhạt cho room chat */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #messages {
+            margin-bottom: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 10px;
+            background-color: #ffffff;
+        }
+        .message {
+            padding: 8px;
+            border-radius: 5px;
+            margin: 5px 0;
+            max-width: 70%;
+            display: block;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: #d1e7dd; /* Tin nhắn của người dùng */
+            text-align: left;
+        }
+        .matched {
+            background-color: #f8d7da; /* Tin nhắn của người được ghép đôi */
+            text-align: right;
+        }
+        .system {
+            background-color: #fff3cd; /* Tin nhắn hệ thống */
+            text-align: center;
+            font-style: italic;
+        }
+        #exitButton {
+            background-color: #f1f1f1;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #onlineStatus {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Chat Match App</h1>
+    <p id="onlineStatus">People online: 0</p>
+    <button id="matchButton">Match with Someone</button>
+
+    <div id="chatRoom">
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Type a message..." />
+        <button id="sendButton">Send</button>
+        <button id="exitButton">Exit Chat</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const matchButton = document.getElementById('matchButton');
+        const chatRoom = document.getElementById('chatRoom');
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const exitButton = document.getElementById('exitButton');
+        const onlineStatus = document.getElementById('onlineStatus');
+
+        // Cập nhật số người online
+        socket.on('userCount', (count) => {
+            onlineStatus.textContent = `People online: ${count}`;
+        });
+
+        // Xử lý khi nhấn nút Match
+        matchButton.addEventListener('click', () => {
+            socket.emit('match');
+            matchButton.style.display = 'none';
+            chatRoom.style.display = 'block';
+        });
+
+        // Gửi tin nhắn
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                socket.emit('message', message);
+                messageInput.value = ''; // Xóa nội dung ô nhập
+            }
+        });
+
+        // Rời khỏi phòng chat
+        exitButton.addEventListener('click', () => {
+            socket.emit('exit');
+        });
+
+        // Hiển thị tin nhắn
+        socket.on('chat message', (msg, sender) => {
+            const msgElement = document.createElement('div');
+            
+            // Phân biệt màu sắc tin nhắn
+            if (sender === 'user') {
+                msgElement.classList.add('message', 'user'); // Màu sắc của người dùng
+            } else if (sender === 'matched') {
+                msgElement.classList.add('message', 'matched'); // Màu sắc của người ghép đôi
+            } else {
+                msgElement.classList.add('message', 'system'); // Tin nhắn hệ thống
+            }
+
+            msgElement.textContent = msg;
+            messagesDiv.appendChild(msgElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Cuộn xuống cuối
+        });
+
+        // Khi phòng chat bắt đầu
+        socket.on('startChat', (message) => {
+            const msgElement = document.createElement('div');
+            msgElement.classList.add('message', 'system');
+            msgElement.textContent = message;
+            messagesDiv.appendChild(msgElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        // Khi người dùng quay lại trang chủ
+        socket.on('returnToHome', (message) => {
+            chatRoom.style.display = 'none';
+            matchButton.style.display = 'block';
+            messagesDiv.innerHTML = ''; // Xóa tất cả tin nhắn
+        });
+
+        // Khi chỉ có một người trong phòng
+        socket.on('waitingForMatch', (message) => {
+            const msgElement = document.createElement('div');
+            msgElement.classList.add('message', 'system');
+            msgElement.textContent = message;
+            messagesDiv.appendChild(msgElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+    </script>
+</body>
+</html>
